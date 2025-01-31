@@ -172,3 +172,90 @@ SELECT
   ROUND(COUNT(*)/(SELECT COUNT(*) FROM payments)::numeric * 100, 2) as status_percentage
 FROM payments
 GROUP BY payment_status;
+
+-- #11
+
+WITH top_sellers AS ( -- CTE: top 5 sellers based on revenue
+  SELECT
+    s.seller_id,
+    s.seller_name,
+    SUM(oi.total_sale) as total_sale
+  FROM orders as o
+  LEFT JOIN order_items as oi
+    ON o.order_id = oi.order_id
+  LEFT JOIN sellers as s
+    ON s.seller_id = o.seller_id
+  GROUP BY s.seller_id, s.seller_name
+  ORDER BY total_sale DESC
+  LIMIT 5
+),
+
+seller_reports AS ( -- CTE: to see different order status
+  SELECT
+    o.seller_id,
+    ts.seller_name,
+    o.order_status,
+    COUNT(*) as order_count
+  FROM orders as o
+  JOIN top_sellers as ts
+    ON o.seller_id = ts.seller_id
+  WHERE
+    o.order_status NOT IN ('Inprogress', 'Returned')
+  GROUP BY o.seller_id, ts.seller_name, o.order_status
+)
+
+SELECT
+  seller_id,
+  seller_name,
+  SUM(CASE WHEN order_status = 'Completed' THEN order_count ELSE 0 END) as completed_orders,
+  SUM(CASE WHEN order_status = 'Cancelled' THEN order_count ELSE 0 END) as cancelled_orders,
+  SUM(order_count) as total_orders,
+  SUM(CASE WHEN order_status = 'Completed' THEN order_count ELSE 0 END)::numeric/SUM(order_count)::numeric * 100 as successful_order_percentage
+FROM seller_reports
+GROUP BY seller_id, seller_name;
+
+
+-- #12
+
+
+SELECT
+  product_id,
+  product_name,
+  profit_margin,
+  DENSE_RANK() OVER(ORDER BY profit_margin DESC) as profit_rank
+
+FROM (
+  SELECT
+    p.product_id as product_id,
+    p.product_name as product_name,
+    -- ROUND(SUM(oi.total_sale - oi.quantity * p.cogs)::numeric, 2) as profit,
+    -- DENSE_RANK () OVER(ORDER BY ROUND(SUM(oi.total_sale - oi.quantity * p.cogs)::numeric, 2) DESC) as profit_rank
+    (SUM((oi.total_sale - oi.quantity * p.cogs))/
+      SUM(oi.total_sale))*100::numeric as profit_margin
+
+  FROM order_items as oi
+  JOIN products as p
+    ON oi.product_id = p.product_id
+  GROUP BY p.product_id, p.product_name
+  ORDER BY profit_margin DESC
+) as table_1;
+
+
+-- #13
+
+SELECT 
+  p.product_id,
+  p.product_name,
+  -- COUNT (*) FILTER (WHERE o.order_status = 'Returned') as returned_orders,
+  -- COUNT (*) as total_orders,
+  ROUND((COUNT (*) FILTER (WHERE o.order_status = 'Returned')::numeric / COUNT (*)::numeric)*100, 2) as return_rate
+FROM orders as o
+JOIN order_items as oi
+  ON o.order_id = oi.order_id
+JOIN products as p
+  ON p.product_id = oi.product_id
+
+GROUP BY 1,2
+ORDER BY return_rate DESC
+LIMIT 10;
+
