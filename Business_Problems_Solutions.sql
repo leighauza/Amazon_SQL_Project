@@ -259,3 +259,146 @@ GROUP BY 1,2
 ORDER BY return_rate DESC
 LIMIT 10;
 
+-- #14
+
+SELECT
+  c.customer_id,
+  c.first_name,
+  c.last_name,
+  c.state,
+  o.order_date,
+  p.payment_date
+
+FROM orders as o 
+JOIN payments as p
+  ON o.order_id = p.order_id
+JOIN customers as c
+  ON c.customer_id = o.customer_id
+
+WHERE p.payment_status = 'Payment Successed'
+  AND o.order_status = 'Inprogress';
+
+-- #15
+
+SELECT
+  s.seller_id,
+  s.seller_name,
+  MAX(o.order_date) AS last_sale_date,
+  COALESCE(SUM(oi.total_sale), 0) AS total_sale
+
+FROM sellers as s
+LEFT JOIN orders as o
+  ON s.seller_id = o.seller_id
+JOIN order_items as oi
+  ON o.order_id = oi.order_id
+
+WHERE s.seller_id NOT IN (
+  SELECT seller_id
+  FROM orders
+  WHERE order_date >= CURRENT_DATE - INTERVAL '6 months'
+)
+
+GROUP BY s.seller_id, s.seller_name
+ORDER BY last_sale_date DESC;
+
+-- #16
+
+WITH initial_table AS(
+  SELECT
+    CONCAT(c.first_name, ' ', c.last_name) as full_name,
+    COUNT(order_id) as total_orders,
+    COUNT(CASE 
+      WHEN order_status = 'Returned' THEN 1
+      ELSE NULL
+    END) AS total_returned
+
+  FROM customers as c
+  LEFT JOIN orders as o
+    ON c.customer_id = o.customer_id
+
+  GROUP BY full_name
+)
+
+
+SELECT *,
+  CASE
+    WHEN total_returned > 5 THEN 'returning'
+    ELSE 'new'
+  END AS customer_type
+FROM initial_table;
+
+-- 17
+
+WITH customers_ranked AS (
+  SELECT
+    CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+    c.state,
+    COUNT(o.order_id) as total_orders,
+    ROUND(SUM(oi.total_sale), 2) as total_sales,
+    RANK() OVER(PARTITION BY c.state ORDER BY COUNT(o.order_id) DESC, SUM(oi.total_sale) DESC) as rank
+
+  FROM customers as c
+  JOIN orders as o
+    ON o.customer_id = c.customer_id
+  JOIN order_items as oi
+    ON oi.order_id = o.order_id
+
+  GROUP BY c.state, c.customer_id
+  ORDER BY c.state, COUNT(o.order_id) DESC
+)
+
+SELECT *
+FROM customers_ranked
+WHERE rank <= 5;
+
+-- 18
+
+SELECT
+  s.shipping_providers as shipping_providers,
+  COUNT(o.order_id) as total_orders,
+  SUM(oi.total_sale) as total_sales,
+  AVG(s.shipping_date - o.order_date) as ave_delivery_time
+
+FROM shipping as s
+JOIN orders as o
+  ON s.order_id = o.order_id
+JOIN order_items as oi
+  ON oi.order_id = o.order_id
+
+GROUP BY s.shipping_providers
+ORDER BY total_orders DESC;
+
+-- 19
+
+SELECT
+    p.product_id,
+    p.product_name,
+    ca.category_name,
+    SUM(CASE
+        WHEN EXTRACT(YEAR FROM o.order_date) = 2022
+        THEN oi.total_sale
+        ELSE 0 
+        END) AS total_sale_2022,
+    SUM(CASE
+        WHEN EXTRACT(YEAR FROM o.order_date) = 2023
+        THEN oi.total_sale
+        ELSE 0 
+        END) AS total_sale_2023,
+    ROUND((SUM(CASE WHEN EXTRACT(YEAR FROM o.order_date) = 2023 THEN oi.total_sale ELSE 0 END)
+        - SUM(CASE WHEN EXTRACT(YEAR FROM o.order_date) = 2022 THEN oi.total_sale ELSE 0 END))
+        / NULLIF(SUM(CASE WHEN EXTRACT(YEAR FROM o.order_date) = 2022 THEN oi.total_sale ELSE 0 END), 0)
+        * 100, 2) AS ratio
+    
+
+FROM products as p
+JOIN  category as ca
+  ON p.category_id = ca.category_id
+JOIN order_items as oi
+  ON p.product_id = oi.product_id
+JOIN orders as o
+  ON oi.order_id = o.order_id
+
+GROUP BY p.product_id, p.product_name, ca.category_name;
+
+-- 20
+
