@@ -85,29 +85,24 @@ if the customer has done more than 5 return categorize them as returning otherwi
 Challenge: List customers id, name, total orders, total returns
 
 
-17. Cross-Sell Opportunities
-Find customers who purchased product A but not product B (e.g., customers who bought AirPods but not AirPods Max).
-Challenge: Suggest cross-sell opportunities by displaying matching product categories.
-
-
-18. Top 5 Customers by Orders in Each State
+17. Top 5 Customers by Orders in Each State
 Identify the top 5 customers with the highest number of orders for each state.
 Challenge: Include the number of orders and total sales for each customer.
 
 
-19. Revenue by Shipping Provider
+18. Revenue by Shipping Provider
 Calculate the total revenue handled by each shipping provider.
 Challenge: Include the total number of orders handled and the average delivery time for each provider.
 
 
-20. Top 10 product with highest decreasing revenue ratio compare to last year(2022) and current_year(2023)
+19. Top 10 product with highest decreasing revenue ratio compare to last year(2022) and current_year(2023)
 Challenge: Return product_id, product_name, category_name, 2022 revenue and 2023 revenue decrease ratio at end Round the result
 
 Note: Decrease ratio = cr-ls/ls* 100 (cs = current_year ls=last_year)
 
 
 
--- Final Task:
+20. Final Task:
 -- Store Procedure
 create a function as soon as the product is sold the the same quantity should reduced from inventory table
 after adding any sales records it should update the stock in the inventory table based on the product and qty purchased
